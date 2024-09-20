@@ -1,324 +1,301 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vue 3 Countdown Timer</title>
-    <script src="https://unpkg.com/vue@3"></script>
-    <style>
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f9f9f9;
-            font-family: Arial, sans-serif;
-        }
-
-        #app {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            width: 400px;
-            padding: 20px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            background-color: #fff;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            text-align: center;
-        }
-
-        .tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            justify-content: center;
-        }
-
-        .tab {
-            cursor: pointer;
-            padding: 10px;
-            border: 1px solid #ccc;
-            background-color: #f1f1f1;
-            border-radius: 4px;
-            transition: background-color 0.3s;
-        }
-
-        .tab.active {
-            background-color: #ccc;
-        }
-
-        .form-group {
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-
-        .form-group input {
-            width: 60px;
-            text-align: center;
-        }
-
-        .form-group label {
-            margin-left: 5px;
-            margin-right: 10px;
-        }
-
-        .form-container {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-
-        .disabled {
-            background-color: #eee;
-            cursor: not-allowed;
-        }
-
-        button {
-            margin: 5px;
-            padding: 8px 16px;
-            border: none;
-            border-radius: 4px;
-            background-color: #007bff;
-            color: white;
-            cursor: pointer;
-            transition: background-color 0.3s;
-            font-family: Arial, sans-serif;
-        }
-
-        button:disabled {
-            background-color: #aaa;
-            cursor: not-allowed;
-        }
-
-        button:hover:not(:disabled) {
-            background-color: #0056b3;
-        }
-
-        button:not(:last-child) {
-            margin-right: 10px;
-        }
-    </style>
-</head>
-<body>
-    <div id="app">
-        <!-- Tabs for different timers -->
-        <div class="tabs">
-            <div 
-                class="tab" 
-                :class="{ active: activeTab === 'pomodoro' }" 
-                @click="switchTab('pomodoro')">Pomodoro</div>
-            <div 
-                class="tab" 
-                :class="{ active: activeTab === 'shortBreak' }" 
-                @click="switchTab('shortBreak')">Short Break</div>
-            <div 
-                class="tab" 
-                :class="{ active: activeTab === 'custom' }" 
-                @click="switchTab('custom')">Custom Timer</div>
-        </div>
-
-        <!-- Pomodoro Timer Section -->
-        <div v-if="activeTab === 'pomodoro'">
-            <p>{{ timerDisplay }}</p>
-            <div v-if="state === 'initial'">
-                <button @click="startPomodoro">Start</button>
-            </div>
-            <div v-if="state === 'running' || state === 'paused'">
-                <button v-if="state === 'running'" @click="pauseCountdown">Pause</button>
-                <button v-if="state === 'paused'" @click="continueCountdown">Continue</button>
-                <button @click="stopCountdown">Stop</button>
-            </div>
-        </div>
-
-        <!-- Short Break Timer Section -->
-        <div v-if="activeTab === 'shortBreak'">
-            <p>{{ timerDisplay }}</p>
-            <div v-if="state === 'initial'">
-                <button @click="startShortBreak">Start</button>
-            </div>
-            <div v-if="state === 'running' || state === 'paused'">
-                <button v-if="state === 'running'" @click="pauseCountdown">Pause</button>
-                <button v-if="state === 'paused'" @click="continueCountdown">Continue</button>
-                <button @click="stopCountdown">Stop</button>
-            </div>
-        </div>
-
-        <!-- Custom Timer Section -->
-        <div v-if="activeTab === 'custom'">
-            <p v-if="state !== 'initial'">{{ timerDisplay }}</p>
-            <div v-if="state === 'initial'">
-                <form @submit.prevent="startCustomCountdown" :class="{ disabled: state === 'running' }">
-                    <div class="form-container">
-                        <div class="form-group">
-                            <input 
-                            type="number" 
-                            id="hours" 
-                            v-model.number="customTime.hours" 
-                            min="0" 
-                            :disabled="state === 'running'"/>
-                            <label for="hours">h</label>
-                        </div>
-                        <div class="form-group">
-                            <input 
-                            type="number" 
-                            id="minutes" 
-                            v-model.number="customTime.minutes" 
-                            min="0" 
-                            max="59" 
-                            :disabled="state === 'running'"/>
-                            <label for="minutes">m</label>
-                        </div>
-                        <div class="form-group">
-                            <input 
-                            type="number" 
-                            id="seconds" 
-                            v-model.number="customTime.seconds" 
-                            min="0" 
-                            max="59" 
-                            :disabled="state === 'running'"/>
-                            <label for="seconds">s</label>
-                        </div>
-                    </div>
-                    <button type="submit" :disabled="isTimeZero || state === 'running'">Start</button>
-                </form>
-            </div>
-            <div v-if="state === 'running' || state === 'paused'">
-                <button v-if="state === 'running'" @click="pauseCountdown">Pause</button>
-                <button v-if="state === 'paused'" @click="continueCountdown">Continue</button>
-                <button @click="stopCountdown">Stop</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        const { ref, computed, watch } = Vue;
-
-        Vue.createApp({
-            setup() {
-                const time = ref(0);
-                let interval = null;
-                const state = ref('initial'); // To manage which buttons are shown
-                const activeTab = ref('pomodoro'); // To manage which tab is active
-
-                const customTime = ref({ hours: 0, minutes: 0, seconds: 0 });
-
-                const defaultPomodoroTime = 25 * 60; // 25 minutes in seconds
-                const defaultShortBreakTime = 5 * 60; // 5 minutes in seconds
-
-                const timerDisplay = computed(() => {
-                    const hours = Math.floor(time.value / 3600);
-                    const minutes = Math.floor((time.value % 3600) / 60);
-                    const seconds = time.value % 60;
-
-                    return `${hours}h ${minutes}m ${seconds}s`;
-                });
-
-                const isTimeZero = computed(() => {
-                    return customTime.value.hours === 0 &&
-                           customTime.value.minutes === 0 &&
-                           customTime.value.seconds === 0;
-                });
-
-                function startCountdown(duration) {
-                    time.value = duration;
-                    state.value = 'running';
-
-                    interval = setInterval(() => {
-                        if (time.value <= 0) {
-                            clearInterval(interval);
-                            time.value = 0;
-                            state.value = 'initial';
-                            alert("Time's up!");
-                            return;
-                        }
-                        time.value -= 1;
-                    }, 1000);
-                }
-
-                function startPomodoro() {
-                    clearInterval(interval);
-                    startCountdown(defaultPomodoroTime); // 25 minutes in seconds
-                }
-
-                function startShortBreak() {
-                    clearInterval(interval);
-                    startCountdown(defaultShortBreakTime); // 5 minutes in seconds
-                }
-
-                function startCustomCountdown() {
-                    clearInterval(interval);
-                    const totalSeconds = customTime.value.hours * 3600 +
-                                         customTime.value.minutes * 60 +
-                                         customTime.value.seconds;
-                    startCountdown(totalSeconds);
-                }
-
-                function pauseCountdown() {
-                    clearInterval(interval);
-                    state.value = 'paused';
-                }
-
-                function continueCountdown() {
-                    state.value = 'running';
-                    interval = setInterval(() => {
-                        if (time.value <= 0) {
-                            clearInterval(interval);
-                            time.value = 0;
-                            state.value = 'initial';
-                            alert("Time's up!");
-                            return;
-                        }
-                        time.value -= 1;
-                    }, 1000);
-                }
-
-                function stopCountdown() {
-                    clearInterval(interval);
-                    state.value = 'initial';
-                    time.value = 0; // Reset the timer to 0
-                }
-
-                function switchTab(tab) {
-                    activeTab.value = tab;
-                    if (state.value === 'running' || state.value === 'paused') {
-                        stopCountdown(); // Stop countdown when switching tabs
-                    }
-                    // Set the timer display to default values when switching tabs
-                    if (tab === 'pomodoro') {
-                        time.value = defaultPomodoroTime;
-                    } else if (tab === 'shortBreak') {
-                        time.value = defaultShortBreakTime;
-                    } else {
-                        time.value = 0;
-                    }
-                }
-
-                watch(activeTab, () => {
-                    if (state.value === 'running' || state.value === 'paused') {
-                        stopCountdown(); // Stop countdown when switching tabs
-                    }
-                });
-
-                return {
-                    timerDisplay,
-                    startPomodoro,
-                    startShortBreak,
-                    startCustomCountdown,
-                    pauseCountdown,
-                    continueCountdown,
-                    stopCountdown,
-                    switchTab,
-                    state,
-                    activeTab,
-                    customTime,
-                    isTimeZero
-                };
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Vue 3 Countdown Timer</title>
+        <script src="https://unpkg.com/vue@3"></script>
+        <style>
+            body {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                margin: 0;
+                background-color: #f9f9f9;
+                font-family: Arial, sans-serif;
             }
-        }).mount('#app');
-    </script>
-</body>
+
+            #app {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                width: 400px;
+                padding: 20px;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                background-color: #fff;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                text-align: center;
+            }
+
+            .tabs {
+                display: flex;
+                gap: 10px;
+                margin-bottom: 20px;
+                justify-content: center;
+            }
+
+            .tab {
+                cursor: pointer;
+                padding: 10px;
+                border: 1px solid #ccc;
+                background-color: #f1f1f1;
+                border-radius: 4px;
+                transition: background-color 0.3s;
+            }
+
+            .tab.active {
+                background-color: #ccc;
+            }
+
+            button {
+                margin: 5px;
+                padding: 8px 16px;
+                border: none;
+                border-radius: 4px;
+                background-color: #007bff;
+                color: white;
+                cursor: pointer;
+                transition: background-color 0.3s;
+            }
+
+            button:disabled {
+                background-color: #aaa;
+                cursor: not-allowed;
+            }
+
+            button:hover:not(:disabled) {
+                background-color: #0056b3;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="app">
+            <div class="tabs">
+                <div
+                    :class="{ active: activeTab === 'pomodoro' }"
+                    @click="activeTab = 'pomodoro'"
+                >
+                    Pomodoro
+                </div>
+                <div
+                    :class="{ active: activeTab === 'shortBreak' }"
+                    @click="activeTab = 'shortBreak'"
+                >
+                    Short Break
+                </div>
+                <div
+                    :class="{ active: activeTab === 'custom' }"
+                    @click="activeTab = 'custom'"
+                >
+                    Custom Timer
+                </div>
+            </div>
+
+            <component :is="currentComponent" />
+        </div>
+
+        <script>
+            const PomodoroTimer = {
+                template: `
+        <div>
+          <p>{{ timerDisplay }}</p>
+          <div v-if="state === 'initial'">
+            <button @click="startPomodoro">Start</button>
+          </div>
+          <div v-if="state === 'running' || state === 'paused'">
+            <button v-if="state === 'running'" @click="pauseCountdown">Pause</button>
+            <button v-if="state === 'paused'" @click="continueCountdown">Continue</button>
+            <button @click="stopCountdown">Stop</button>
+          </div>
+        </div>
+      `,
+                data() {
+                    return {
+                        time: 25 * 60,
+                        state: "initial",
+                        interval: null,
+                    };
+                },
+                computed: {
+                    timerDisplay() {
+                        const minutes = Math.floor(this.time / 60);
+                        const seconds = this.time % 60;
+                        return `${minutes}m ${seconds}s`;
+                    },
+                },
+                methods: {
+                    startPomodoro() {
+                        clearInterval(this.interval);
+                        this.state = "running";
+                        this.interval = setInterval(() => {
+                            if (this.time <= 0) {
+                                clearInterval(this.interval);
+                                this.state = "initial";
+                                alert("Time's up!");
+                            } else {
+                                this.time--;
+                            }
+                        }, 1000);
+                    },
+                    pauseCountdown() {
+                        clearInterval(this.interval);
+                        this.state = "paused";
+                    },
+                    continueCountdown() {
+                        this.state = "running";
+                        this.startPomodoro();
+                    },
+                    stopCountdown() {
+                        clearInterval(this.interval);
+                        this.state = "initial";
+                        this.time = 25 * 60;
+                    },
+                },
+            };
+
+            const ShortBreakTimer = {
+                template: `
+        <div>
+          <p>{{ timerDisplay }}</p>
+          <div v-if="state === 'initial'">
+            <button @click="startShortBreak">Start</button>
+          </div>
+          <div v-if="state === 'running' || state === 'paused'">
+            <button v-if="state === 'running'" @click="pauseCountdown">Pause</button>
+            <button v-if="state === 'paused'" @click="continueCountdown">Continue</button>
+            <button @click="stopCountdown">Stop</button>
+          </div>
+        </div>
+      `,
+                data() {
+                    return {
+                        time: 5 * 60,
+                        state: "initial",
+                        interval: null,
+                    };
+                },
+                computed: {
+                    timerDisplay() {
+                        const minutes = Math.floor(this.time / 60);
+                        const seconds = this.time % 60;
+                        return `${minutes}m ${seconds}s`;
+                    },
+                },
+                methods: {
+                    startShortBreak() {
+                        clearInterval(this.interval);
+                        this.state = "running";
+                        this.interval = setInterval(() => {
+                            if (this.time <= 0) {
+                                clearInterval(this.interval);
+                                this.state = "initial";
+                                alert("Time's up!");
+                            } else {
+                                this.time--;
+                            }
+                        }, 1000);
+                    },
+                    pauseCountdown() {
+                        clearInterval(this.interval);
+                        this.state = "paused";
+                    },
+                    continueCountdown() {
+                        this.state = "running";
+                        this.startShortBreak();
+                    },
+                    stopCountdown() {
+                        clearInterval(this.interval);
+                        this.state = "initial";
+                        this.time = 5 * 60;
+                    },
+                },
+            };
+
+            const CustomTimer = {
+                template: `
+        <div>
+          <p>{{ timerDisplay }}</p>
+          <form @submit.prevent="startCustomCountdown">
+            <input type="number" v-model.number="customTime.hours" min="0" placeholder="Hours" />
+            <input type="number" v-model.number="customTime.minutes" min="0" max="59" placeholder="Minutes" />
+            <input type="number" v-model.number="customTime.seconds" min="0" max="59" placeholder="Seconds" />
+            <button type="submit">Start</button>
+          </form>
+          <div v-if="state === 'running' || state === 'paused'">
+            <button v-if="state === 'running'" @click="pauseCountdown">Pause</button>
+            <button v-if="state === 'paused'" @click="continueCountdown">Continue</button>
+            <button @click="stopCountdown">Stop</button>
+          </div>
+        </div>
+      `,
+                data() {
+                    return {
+                        customTime: { hours: 0, minutes: 0, seconds: 0 },
+                        time: 0,
+                        state: "initial",
+                        interval: null,
+                    };
+                },
+                computed: {
+                    timerDisplay() {
+                        const hours = Math.floor(this.time / 3600);
+                        const minutes = Math.floor((this.time % 3600) / 60);
+                        const seconds = this.time % 60;
+                        return `${hours}h ${minutes}m ${seconds}s`;
+                    },
+                },
+                methods: {
+                    startCustomCountdown() {
+                        clearInterval(this.interval);
+                        this.time =
+                            this.customTime.hours * 3600 +
+                            this.customTime.minutes * 60 +
+                            this.customTime.seconds;
+                        this.state = "running";
+                        this.interval = setInterval(() => {
+                            if (this.time <= 0) {
+                                clearInterval(this.interval);
+                                this.state = "initial";
+                                alert("Time's up!");
+                            } else {
+                                this.time--;
+                            }
+                        }, 1000);
+                    },
+                    pauseCountdown() {
+                        clearInterval(this.interval);
+                        this.state = "paused";
+                    },
+                    continueCountdown() {
+                        this.state = "running";
+                        this.startCustomCountdown();
+                    },
+                    stopCountdown() {
+                        clearInterval(this.interval);
+                        this.state = "initial";
+                        this.time = 0;
+                    },
+                },
+            };
+
+            Vue.createApp({
+                data() {
+                    return {
+                        activeTab: "pomodoro",
+                    };
+                },
+                computed: {
+                    currentComponent() {
+                        return this.activeTab === "pomodoro"
+                            ? PomodoroTimer
+                            : this.activeTab === "shortBreak"
+                            ? ShortBreakTimer
+                            : CustomTimer;
+                    },
+                },
+            }).mount("#app");
+        </script>
+    </body>
 </html>
